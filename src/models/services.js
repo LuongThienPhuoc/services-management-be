@@ -29,21 +29,20 @@ const ServiceSchema = new Schema(
             platform: { type: String, required: true },
             serviceDependencies: [
                 {
-                    serviceId: {
-                        type: Schema.Types.ObjectID,
-                        ref: "services",
-                    },
-                    listLog: [
-                        {
-                            type: Schema.Types.ObjectID,
-                            ref: "logs"
-                        }
-                    ],
-                    time: {
-                        type: Number,
-                        default: 0
-                    }
-                }
+                    type: Schema.Types.ObjectID,
+                    ref: "services",
+                },
+                // listLog: [
+                //     {
+                //         type: Schema.Types.ObjectID,
+                //         ref: "logs"
+                //     }
+                // ],
+                // time: {
+                //     type: Number,
+                //     default: 0
+                // }
+
             ],
             infrastructure: {
                 java: { type: Boolean, default: false },
