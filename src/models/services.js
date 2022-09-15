@@ -6,7 +6,7 @@ const ServiceSchema = new Schema(
         serviceName: { type: String, required: true },
         author: { type: String, required: true }, // Email
         authorizedPerson: { type: String, required: true }, // Email
-        isPublic: { type: Boolean, default: false },
+        isPublic: { type: Boolean, default: true },
         version: { type: String, required: true },
         monitoring: {
             endpointPublicUrl: { type: String, required: true },
