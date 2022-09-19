@@ -3,10 +3,17 @@ const Service = require("../models/services");
 class serviceController {
     checkDeadlock = async (req, res) => {
         try {
+            // Get giá trị
             const { id } = req.params;
             const services = await Service.find()
-                .select("serviceName requirement.ownDependencies")
+                .populate({
+                    path: "requirement.ownDependencies",
+                    select: "serviceName",
+                })
                 .exec();
+
+
+            // Đệ quy lấy giá trị cây
             const recursive = (listDepen) => {
                 if (listDepen?.length === 0 || listDepen === undefined) {
                     return [];
@@ -22,20 +29,22 @@ class serviceController {
                     };
                 });
             };
-
             const service = await Service.findById(id.trim());
             const serviceReturn = {
                 id: service._id,
                 name: service.serviceName,
                 list: recursive(service.requirement.ownDependencies),
             };
-
             serviceReturn.list[0].list[0].list.push({
                 id: service._id,
                 name: service.serviceName,
                 list: [],
             });
 
+
+
+
+            // Check deadlock
             const checkValid = (service, key) => {
                 if (service.name === key) {
                     return false;
@@ -48,7 +57,6 @@ class serviceController {
                 }
                 return true;
             };
-
             const checkDeadlock = (serviceChild, key) => {
                 for (let i = 0; i < serviceChild.length; i++) {
                     if (!checkValid(serviceChild[i], key)) return true;
@@ -70,6 +78,8 @@ class serviceController {
 
     editService = async (req, res) => {
         try {
+            // Lấy giá trị
+            const { id } = req.params
             const {
                 serviceName,
                 author,
@@ -89,8 +99,11 @@ class serviceController {
                 infrastructure,
             } = req.body;
             const services = await Service.find()
-                .select("serviceName requirement.ownDependencies")
                 .exec();
+
+
+
+            //Đệ quy lấy giá trị cây
             const recursive = (listDepen) => {
                 if (listDepen?.length === 0 || listDepen === undefined) {
                     return [];
@@ -106,13 +119,17 @@ class serviceController {
                     };
                 });
             };
-            const service = await Service.findOne({ author });
+            const service = await Service.findOne({ _id: id })
             const serviceReturn = {
                 id: service._id,
                 name: service.serviceName,
                 list: recursive(service.requirement.ownDependencies),
             };
 
+
+
+
+            // Check deadlock
             const checkValid = (service, key) => {
                 if (service.name === key) {
                     return false;
@@ -134,30 +151,162 @@ class serviceController {
             };
 
             const deadlock = []
-            const currentDependencies = []
+            const ownDependencies = []
+            let isSuccess = true;
 
+            const currentService = services.find(
+                (value) => String(value._id) === String(id)
+            );
 
+            for (let i = 0; i < currentService.requirement.ownDependencies.length; i++) {
+                const serviceTempo = await Service.findById(currentService.requirement.ownDependencies[i]).select("serviceName")
+                ownDependencies.push(serviceTempo.serviceName)
+            }
 
+            // Lấy deadlock
             serviceDependencies.forEach(name => {
-                if (checkDeadlock(serviceReturn.list, name)) {
+                if (ownDependencies.includes(name)) {
                     deadlock.push({
                         serviceName: name,
                         deadlock: true
                     })
+                    isSuccess = false
                 } else {
-                    deadlock.push({
-                        serviceName: name,
-                        deadlock: false
-                    })
+                    if (checkDeadlock(serviceReturn.list, name)) {
+                        deadlock.push({
+                            serviceName: name,
+                            deadlock: true
+                        })
+                        isSuccess = false
+                    } else {
+                        deadlock.push({
+                            serviceName: name,
+                            deadlock: false
+                        })
+                    }
                 }
             })
 
+            const update = async () => {
+                const serviceNameList = await Service.find({ _id: { $in: service.requirement.serviceDependencies } }).select("serviceName").exec()
+                console.log(serviceNameList)
+                console.log(serviceDependencies)
 
-            res.status(200).json({
-                status: 1,
-                serviceReturn,
-                deadlock
-            });
+                for (let i = 0; i < serviceDependencies.length; i++) {
+                    let check = serviceNameList.find((value) => {
+                        if (value.serviceName === serviceDependencies[i]) {
+                            return value
+                        }
+                    })
+                    if (!check) {
+                        console.log("Thêm service mới")
+                        console.log(check);
+                        await Service.findOneAndUpdate(
+                            {
+                                serviceName: serviceDependencies[i],
+                            },
+                            {
+                                $push: { "requirement.ownDependencies": service._id },
+                            }
+                        );
+                    }
+                }
+
+                for (let i = 0; i < serviceNameList.length; i++) {
+                    if (!serviceDependencies.includes(serviceNameList[i].serviceName)) {
+                        console.log(serviceNameList[i]._id)
+                        await Service.findOneAndUpdate(
+                            {
+                                serviceName: serviceNameList[i].serviceName,
+                            },
+                            {
+                                $pull: { "requirement.ownDependencies": service._id },
+                            }
+                        );
+                    }
+                }
+
+                const listIdService = await Service.find({
+                    serviceName: {
+                        $in: serviceDependencies,
+                    },
+                }).select("_id");
+
+                let updateService = await Service.findOneAndUpdate({ _id: id }, {
+                    serviceName,
+                    author,
+                    authorizedPerson,
+                    isPublic: isPublic === "public" ? true : false,
+                    version,
+                    monitoring: {
+                        endpointPublicUrl,
+                        endpointPrivateUrl,
+                        alertTo: alertTo
+                            ? alertTo.map((value) => {
+                                return {
+                                    name: value.name,
+                                    email: value.email,
+                                    phone: value.phone,
+                                };
+                            })
+                            : [],
+                        alertBot: {
+                            name: nameBot,
+                            botEndpoint,
+                        },
+                    },
+                    requirement: {
+                        domain,
+                        port,
+                        platform,
+                        serviceDependencies: listIdService ? listIdService : [],
+                        ownDependencies: [],
+                        infrastructure: {
+                            java: infrastructure && infrastructure.includes("java"),
+                            mongodb: infrastructure && infrastructure.includes("mongodb"),
+                            redis: infrastructure && infrastructure.includes("redis"),
+                            hazelcast: infrastructure && infrastructure.includes("hazelcast"),
+                            kafka: infrastructure && infrastructure.includes("kafka"),
+                            elasticSearch:
+                                infrastructure && infrastructure.includes("elasticSearch"),
+                            nodejs: infrastructure && infrastructure.includes("nodejs"),
+                        },
+                        database: {
+                            mongodb: {
+                                dbName: database,
+                            },
+                        },
+                    },
+                });
+                res.status(200).json({
+                    message: "Edit thành công",
+                    service: updateService
+                })
+            }
+
+            // Edit service
+            if (isSuccess) {
+                if (service.serviceName === serviceName) {
+                    update()
+                } else {
+                    const check = await Service.findOne({ serviceName })
+                    if (!check) {
+                        update()
+                    } else {
+                        res.status(200).json({
+                            message: "Tên tồn tại"
+                        })
+                    }
+                }
+
+            } else {
+                res.status(200).json({
+                    status: 1,
+                    serviceReturn,
+                    deadlock,
+                });
+            }
+
         } catch (err) {
             res.status(400).json({
                 err: err.message,
@@ -199,100 +348,100 @@ class serviceController {
     };
 
     addNewService = async (req, res) => {
-        // try {
-        const {
-            serviceName,
-            author,
-            authorizedPerson,
-            isPublic,
-            version,
-            endpointPublicUrl,
-            endpointPrivateUrl,
-            alertTo,
-            nameBot,
-            botEndpoint,
-            domain,
-            port,
-            platform,
-            serviceDependencies,
-            database,
-            infrastructure,
-        } = req.body;
-        const checkExist = await Service.findOne({ serviceName }).exec();
-        if (checkExist) {
-            res.status(200).json({ message: "Service actually existed" });
-        } else {
-            const listIdService = await Service.find({
-                serviceName: {
-                    $in: serviceDependencies,
-                },
-            }).select("_id");
-            const service = new Service({
+        try {
+            const {
                 serviceName,
                 author,
                 authorizedPerson,
-                isPublic: isPublic === "public" ? true : false,
+                isPublic,
                 version,
-                monitoring: {
-                    endpointPublicUrl,
-                    endpointPrivateUrl,
-                    alertTo: alertTo
-                        ? alertTo.map((value) => {
-                            return {
-                                name: value.name,
-                                email: value.email,
-                                phone: value.phone,
-                            };
-                        })
-                        : [],
-                    alertBot: {
-                        name: nameBot,
-                        botEndpoint,
+                endpointPublicUrl,
+                endpointPrivateUrl,
+                alertTo,
+                nameBot,
+                botEndpoint,
+                domain,
+                port,
+                platform,
+                serviceDependencies,
+                database,
+                infrastructure,
+            } = req.body;
+            const checkExist = await Service.findOne({ serviceName }).exec();
+            if (checkExist) {
+                res.status(200).json({ message: "Service actually existed" });
+            } else {
+                const listIdService = await Service.find({
+                    serviceName: {
+                        $in: serviceDependencies,
                     },
-                },
-                requirement: {
-                    domain,
-                    port,
-                    platform,
-                    serviceDependencies: listIdService ? listIdService : [],
-                    ownDependencies: [],
-                    infrastructure: {
-                        java: infrastructure && infrastructure.includes("java"),
-                        mongodb: infrastructure && infrastructure.includes("mongodb"),
-                        redis: infrastructure && infrastructure.includes("redis"),
-                        hazelcast: infrastructure && infrastructure.includes("hazelcast"),
-                        kafka: infrastructure && infrastructure.includes("kafka"),
-                        elasticSearch:
-                            infrastructure && infrastructure.includes("elasticSearch"),
-                        nodejs: infrastructure && infrastructure.includes("nodejs"),
-                    },
-                    database: {
-                        mongodb: {
-                            dbName: database,
+                }).select("_id");
+                const service = new Service({
+                    serviceName,
+                    author,
+                    authorizedPerson,
+                    isPublic: isPublic === "public" ? true : false,
+                    version,
+                    monitoring: {
+                        endpointPublicUrl,
+                        endpointPrivateUrl,
+                        alertTo: alertTo
+                            ? alertTo.map((value) => {
+                                return {
+                                    name: value.name,
+                                    email: value.email,
+                                    phone: value.phone,
+                                };
+                            })
+                            : [],
+                        alertBot: {
+                            name: nameBot,
+                            botEndpoint,
                         },
                     },
-                },
-            });
-            await service.save();
-            console.log(service._id);
-            for (let i = 0; i < serviceDependencies.length; i++) {
-                console.log(serviceDependencies[i]);
-                await Service.findOneAndUpdate(
-                    {
-                        serviceName: serviceDependencies[i],
+                    requirement: {
+                        domain,
+                        port,
+                        platform,
+                        serviceDependencies: listIdService ? listIdService : [],
+                        ownDependencies: [],
+                        infrastructure: {
+                            java: infrastructure && infrastructure.includes("java"),
+                            mongodb: infrastructure && infrastructure.includes("mongodb"),
+                            redis: infrastructure && infrastructure.includes("redis"),
+                            hazelcast: infrastructure && infrastructure.includes("hazelcast"),
+                            kafka: infrastructure && infrastructure.includes("kafka"),
+                            elasticSearch:
+                                infrastructure && infrastructure.includes("elasticSearch"),
+                            nodejs: infrastructure && infrastructure.includes("nodejs"),
+                        },
+                        database: {
+                            mongodb: {
+                                dbName: database,
+                            },
+                        },
                     },
-                    {
-                        $push: { "requirement.ownDependencies": [service._id] },
-                    }
-                );
+                });
+                await service.save();
+                console.log(service._id);
+                for (let i = 0; i < serviceDependencies.length; i++) {
+                    console.log(serviceDependencies[i]);
+                    await Service.findOneAndUpdate(
+                        {
+                            serviceName: serviceDependencies[i],
+                        },
+                        {
+                            $push: { "requirement.ownDependencies": [service._id] },
+                        }
+                    );
+                }
+                res.status(200).json({ message: "Add-new-service", service });
             }
-            res.status(200).json({ message: "Add-new-service", service });
+        } catch (err) {
+            res.status(400).json({
+                err: err.message
+            })
         }
-        // } catch (err) {
-        //     res.status(400).json({
-        //         err: err.message
-        //     })
-        // }
     };
 
     getServiceTree = async (req, res) => {
@@ -325,7 +474,6 @@ class serviceController {
                 let result = [];
                 objectList[serviceID].forEach((value) => {
                     result.push({
-                        // value: value,
                         dependences: findDependences(value),
                         ...objectInfo[value],
                     });
@@ -341,7 +489,6 @@ class serviceController {
     };
 
     getServiceList = async (req, res) => {
-        // console.log(req.query);
         Service.find()
             .exec()
             .then((data) => {
