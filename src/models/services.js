@@ -27,6 +27,12 @@ const ServiceSchema = new Schema(
             domain: { type: String, required: true },
             port: { type: Number, required: true },
             platform: { type: String, required: true },
+            ownDependencies: [
+                {
+                    type: Schema.Types.ObjectID,
+                    ref: "services",
+                },
+            ],
             serviceDependencies: [
                 {
                     type: Schema.Types.ObjectID,
