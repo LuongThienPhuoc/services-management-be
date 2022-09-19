@@ -1,6 +1,48 @@
+const { findOneAndDelete } = require("../models/services");
 const Service = require("../models/services");
 
 class serviceController {
+    deleteService = async (req, res) => {
+        try {
+            const { id } = req.params
+            const service = await Service.findById(id)
+                .populate("requirement.serviceDependencies", "serviceName")
+                .populate("requirement.ownDependencies", "serviceName")
+                .exec()
+            for (let i = 0; i < service.requirement.ownDependencies.length; i++) {
+                await Service.findOneAndUpdate(
+                    {
+                        serviceName: service.requirement.ownDependencies[i].serviceName
+                    },
+                    {
+                        $pull: { "requirement.serviceDependencies": service._id },
+                    }
+                );
+            }
+
+            for (let i = 0; i < service.requirement.serviceDependencies.length; i++) {
+                console.log(service.requirement.serviceDependencies[i].serviceName)
+                await Service.findOneAndUpdate(
+                    {
+                        serviceName: service.requirement.serviceDependencies[0].serviceName
+                    },
+                    {
+                        $pull: { "requirement.ownDependencies": service._id },
+                    }
+                );
+            }
+            await Service.findOneAndDelete({ _id: id })
+            res.status(200).json({
+                message: "Thành công",
+                service
+            })
+        } catch (err) {
+            res.status(400).json({
+                err: err.message
+            })
+        }
+    }
+
     checkDeadlock = async (req, res) => {
         try {
             // Get giá trị
