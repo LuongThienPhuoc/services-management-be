@@ -32,9 +32,10 @@ class serviceController {
                 );
             }
             await Service.findOneAndDelete({ _id: id })
+            const services = await Service.find().exec()
             res.status(200).json({
                 message: "Thành công",
-                service
+                services
             })
         } catch (err) {
             res.status(400).json({
@@ -336,15 +337,15 @@ class serviceController {
                         update()
                     } else {
                         res.status(200).json({
-                            message: "Tên tồn tại"
+                            message: "Tên service tồn tại!",
+                            status: 0
                         })
                     }
                 }
 
             } else {
                 res.status(200).json({
-                    status: 1,
-                    serviceReturn,
+                    status: 0,
                     deadlock,
                 });
             }
@@ -411,7 +412,7 @@ class serviceController {
             } = req.body;
             const checkExist = await Service.findOne({ serviceName }).exec();
             if (checkExist) {
-                res.status(200).json({ message: "Service actually existed" });
+                res.status(200).json({ message: "Service actually existed", status: 0 });
             } else {
                 const listIdService = await Service.find({
                     serviceName: {
@@ -532,6 +533,8 @@ class serviceController {
 
     getServiceList = async (req, res) => {
         Service.find()
+            // .populate("requirement.serviceDependencies", "serviceName")
+            // .populate("requirement.ownDependencies", "serviceName")
             .exec()
             .then((data) => {
                 res.status(200).send({ success: true, services: data });
