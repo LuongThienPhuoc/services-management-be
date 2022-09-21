@@ -10,6 +10,7 @@ class serviceController {
                 .populate("requirement.ownDependencies", "serviceName")
                 .exec()
             for (let i = 0; i < service.requirement.ownDependencies.length; i++) {
+
                 await Service.findOneAndUpdate(
                     {
                         serviceName: service.requirement.ownDependencies[i].serviceName
@@ -19,12 +20,10 @@ class serviceController {
                     }
                 );
             }
-
             for (let i = 0; i < service.requirement.serviceDependencies.length; i++) {
-                console.log(service.requirement.serviceDependencies[i].serviceName)
                 await Service.findOneAndUpdate(
                     {
-                        serviceName: service.requirement.serviceDependencies[0].serviceName
+                        serviceName: service.requirement.serviceDependencies[i].serviceName
                     },
                     {
                         $pull: { "requirement.ownDependencies": service._id },
@@ -374,8 +373,6 @@ class serviceController {
         }
     }
 
-
-
     getAllService = async (req, res) => {
         try {
             const services = await Service.find()
@@ -543,6 +540,40 @@ class serviceController {
                 res.status(204).send({ success: false, services: data });
             });
     };
+
+    getTree = async (req, res) => {
+
+        const { id } = req.params;
+        const services = await Service.find()
+            .exec();
+
+        //Đệ quy lấy giá trị cây
+        const recursive = (listDepen) => {
+            if (listDepen?.length === 0 || listDepen === undefined) {
+                return null;
+            }
+            return listDepen.map((depen) => {
+                let filter = services.find(
+                    (value) => String(value._id) === String(depen)
+                );
+                return {
+                    id: depen,
+                    name: filter.serviceName,
+                    children: recursive(filter?.requirement?.ownDependencies),
+                };
+            });
+        };
+        const service = await Service.findOne({ _id: id })
+        const serviceReturn = {
+            id: service._id,
+            name: service.serviceName,
+            children: recursive(service.requirement.ownDependencies),
+        };
+
+        res.status(200).json({
+            tree: serviceReturn
+        })
+    }
 }
 
 module.exports = new serviceController();
