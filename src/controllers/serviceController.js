@@ -113,6 +113,32 @@ class serviceController {
                 err: err.message,
             });
         }
+        res.status(200).json({ message: "Add-new-service", service });
+    }
+};
+
+getServiceTree = async (req, res) => {
+    // console.log(req.query);
+    // console.log(req.query.id);
+    let allServices = await Service.find();
+    // console.log("allServices", allServices);
+    let objectList = {};
+    let objectInfo = {};
+    for (let i = 0; i < allServices.length; i++) {
+        objectList[allServices[i]._id] = allServices[
+            i
+        ].requirement.serviceDependencies.map((value) => value.toString());
+        objectInfo[allServices[i]._id] = {
+            _id: allServices[i]._id,
+            name: allServices[i].serviceName,
+        };
+    }
+
+    // console.log("objectList", objectList);
+    // console.log("objectInfo", objectInfo);
+    let objectTree = {};
+    objectTree = {
+        ...objectInfo[req.query._id],
     };
 
     editService = async (req, res) => {
