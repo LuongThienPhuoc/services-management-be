@@ -1,6 +1,63 @@
 const User = require("../models/user");
+const Admin = require("../models/admin")
+const bcrypt = require("bcrypt");
+const saltRounds = 10;
+const { JWTAuthToken } = require("../middleware/JWT")
 
 class userController {
+  resgister = async (req, res) => {
+    try {
+      const username = "admin"
+      const password = "123456789"
+      const salt = `qwertyuiopasdfghjklzxcvbnm`;
+      Admin.create({
+        username,
+        password: bcrypt.hashSync(password + salt, saltRounds),
+        salt
+      })
+        .then(result => {
+          res.status(200).send(
+            JSON.stringify({
+              message: "Đăng ký thành công",
+              status: 1,
+            })
+          );
+        })
+    } catch (err) {
+      res.status(400).json({
+        err: err.message
+      })
+    }
+  }
+
+  login = async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      const admin = await Admin.findOne({ username }).exec()
+      console.log(admin)
+      if (admin) {
+        if (bcrypt.compareSync(password + admin.salt, admin.password)) {
+          res.status(400).json({
+            message: "Đăng nhập thành công",
+            jwt: JWTAuthToken({ username }),
+          })
+        } else {
+          res.status(400).json({
+            message: "Mật khẩu không đúng"
+          })
+        }
+      } else {
+        res.status(400).json({
+          message: "Tài khoản không tồn tại"
+        })
+      }
+    } catch (err) {
+      res.status(400).json({
+        err: err.message
+      })
+    }
+  }
+
   addEmail = async (req, res) => {
     const list =
       `Doãn Hoàng Lan

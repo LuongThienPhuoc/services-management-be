@@ -1,9 +1,6 @@
 const jwt = require('jsonwebtoken')
 const KEY_JWT = process.env.KEY_JWT || "PHIPHUOC"
 
-
-
-
 function JWTAuthToken(data) {
     return (jwt.sign(
         { ...data },
