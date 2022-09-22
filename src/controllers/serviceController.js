@@ -565,6 +565,10 @@ class serviceController {
                 return {
                     id: depen,
                     name: filter.serviceName,
+                    attributes: {
+                        Author: filter.author,
+                        Public: filter.isPublic
+                    },
                     children: recursive(filter?.requirement?.ownDependencies),
                 };
             });
@@ -573,6 +577,10 @@ class serviceController {
         const serviceReturn = {
             id: service._id,
             name: service.serviceName,
+            attributes: {
+                Author: service.author,
+                Public: service.isPublic
+            },
             children: recursive(service.requirement.ownDependencies),
         };
 
