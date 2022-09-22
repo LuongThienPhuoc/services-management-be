@@ -5,6 +5,22 @@ const saltRounds = 10;
 const { JWTAuthToken } = require("../middleware/JWT")
 
 class userController {
+
+  refresh = async (req, res) => {
+    try {
+      const { username } = res.locals.data
+      res.status(200).send(JSON.stringify({
+        message: "Refresh thành công",
+        status: 1,
+        token: JWTAuthToken({ username })
+      }))
+    } catch (err) {
+      res.status(400).json({
+        err: err.message
+      })
+    }
+  }
+
   resgister = async (req, res) => {
     try {
       const username = "admin"
@@ -37,17 +53,17 @@ class userController {
       console.log(admin)
       if (admin) {
         if (bcrypt.compareSync(password + admin.salt, admin.password)) {
-          res.status(400).json({
+          res.status(200).json({
             message: "Đăng nhập thành công",
-            jwt: JWTAuthToken({ username }),
+            token: JWTAuthToken({ username }),
           })
         } else {
-          res.status(400).json({
+          res.status(200).json({
             message: "Mật khẩu không đúng"
           })
         }
       } else {
-        res.status(400).json({
+        res.status(200).json({
           message: "Tài khoản không tồn tại"
         })
       }
