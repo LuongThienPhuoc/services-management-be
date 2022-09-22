@@ -549,6 +549,7 @@ class serviceController {
                 res.status(204).send({ success: false, services: data });
             });
     };
+
     getTree = async (req, res) => {
         const { id } = req.params;
         const services = await Service.find().exec();
