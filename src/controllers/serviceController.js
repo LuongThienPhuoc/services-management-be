@@ -489,10 +489,7 @@ class serviceController {
   };
 
   getServiceTree = async (req, res) => {
-    // console.log(req.query);
-    // console.log(req.query.id);
     let allServices = await Service.find();
-    // console.log("allServices", allServices);
     let objectList = {};
     let objectInfo = {};
     for (let i = 0; i < allServices.length; i++) {
@@ -513,8 +510,6 @@ class serviceController {
     };
 
     let findDependences = (serviceID) => {
-      //   console.log("serviceID", serviceID);
-      //   console.log("objectList[serviceID]", objectList[serviceID]);
       if (!objectList[serviceID]) return [];
       else {
         let result = [];
@@ -529,7 +524,6 @@ class serviceController {
     };
 
     const depen = findDependences(req.query.id);
-    // console.log("objectList", objectList);
     res.status(200).send({
       success: true,
       depen: depen,
@@ -538,10 +532,7 @@ class serviceController {
   };
 
   getServiceTreeReverse = async (req, res) => {
-    // console.log(req.query);
-    // console.log(req.query.id);
     let allServices = await Service.find();
-    // console.log("allServices", allServices);
     let objectList = {};
     let objectInfo = {};
     for (let i = 0; i < allServices.length; i++) {
@@ -553,17 +544,12 @@ class serviceController {
         name: allServices[i].serviceName,
       };
     }
-
-    // console.log("objectList", objectList);
-    // console.log("objectInfo", objectInfo);
     let objectTree = {};
     objectTree = {
       ...objectInfo[req.query._id],
     };
 
     let findDependences = (serviceID) => {
-      //   console.log("serviceID", serviceID);
-      //   console.log("objectList[serviceID]", objectList[serviceID]);
       if (!objectList[serviceID]) return [];
       else {
         let result = [];
