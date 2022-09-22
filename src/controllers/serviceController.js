@@ -584,8 +584,39 @@ class serviceController {
             children: recursive(service.requirement.ownDependencies),
         };
 
+        const recursiveDepen = (listDepen) => {
+            if (listDepen?.length === 0 || listDepen === undefined) {
+                return null;
+            }
+            return listDepen.map((depen) => {
+                let filter = services.find(
+                    (value) => String(value._id) === String(depen)
+                );
+                return {
+                    id: depen,
+                    name: filter.serviceName,
+                    attributes: {
+                        Author: filter.author,
+                        Public: filter.isPublic
+                    },
+                    children: recursiveDepen(filter?.requirement?.serviceDependencies),
+                };
+            });
+        };
+
+        const serviceDepenReturn = {
+            id: service._id,
+            name: service.serviceName,
+            attributes: {
+                Author: service.author,
+                Public: service.isPublic
+            },
+            children: recursiveDepen(service.requirement.serviceDependencies),
+        };
+
         res.status(200).json({
-            tree: serviceReturn,
+            treeOwn: serviceReturn,
+            treeDepen: serviceDepenReturn
         });
     };
 }
