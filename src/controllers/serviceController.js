@@ -546,8 +546,8 @@ class serviceController {
       };
     }
 
-    console.log("objectList", objectList);
-    console.log("objectInfo", objectInfo);
+    // console.log("objectList", objectList);
+    // console.log("objectInfo", objectInfo);
     let objectTree = {};
     objectTree = {
       ...objectInfo[req.query._id],
