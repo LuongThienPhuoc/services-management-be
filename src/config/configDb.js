@@ -1,6 +1,8 @@
 const mongoose = require("mongoose");
-const PASSWORD_MONGODB = process.env.PASSWORD_MONGODB
-const URI = `mongodb+srv://taptap-totp:${PASSWORD_MONGODB}@cluster0.owcqs.mongodb.net/servicesManagementDatabase?retryWrites=true&w=majority`;
+const PASSWORD_MONGODB = process.env.PASSWORD_MONGODB;
+const URI = process.env.MONGO_URI
+  ? process.env.MONGO_URI
+  : `mongodb+srv://taptap-totp:${PASSWORD_MONGODB}@cluster0.owcqs.mongodb.net/servicesManagementDatabase?retryWrites=true&w=majority`;
 
 module.exports = connectDB = async () => {
   try {
